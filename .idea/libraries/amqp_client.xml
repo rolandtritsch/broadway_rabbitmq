@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="amqp_client" type="mix">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/_build/test/lib/amqp_client/ebin" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/deps/amqp_client/src" />
+    </SOURCES>
+  </library>
+</component>

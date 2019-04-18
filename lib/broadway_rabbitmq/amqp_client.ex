@@ -4,7 +4,9 @@ defmodule BroadwayRabbitMQ.AmqpClient do
   alias AMQP.{
     Connection,
     Channel,
-    Basic
+    Basic,
+    Exchange,
+    Queue
   }
 
   require Logger
@@ -14,6 +16,7 @@ defmodule BroadwayRabbitMQ.AmqpClient do
   @default_prefetch_count 50
   @supported_options [
     :queue,
+    :exchange,
     :connection,
     :qos,
     :backoff_min,
@@ -36,10 +39,12 @@ defmodule BroadwayRabbitMQ.AmqpClient do
          {:ok, queue} <- validate(opts, :queue),
          {:ok, requeue} <- validate(opts, :requeue, @requeue_default_option),
          {:ok, conn_opts} <- validate_conn_opts(opts),
+         {:ok, exchange_opts} <-  validate_exchange_opts(opts),
          {:ok, qos_opts} <- validate_qos_opts(opts) do
       {:ok, queue,
        %{
          connection: conn_opts,
+         exchange: exchange_opts,
          qos: qos_opts,
          requeue: requeue
        }}
@@ -47,11 +52,23 @@ defmodule BroadwayRabbitMQ.AmqpClient do
   end
 
   @impl true
-  def setup_channel(config) do
+  def setup_channel(%{exchange: exchange} = config) when is_nil(exchange) do
     with {:ok, conn} <- Connection.open(config.connection),
          {:ok, channel} <- Channel.open(conn),
          :ok <- Basic.qos(channel, config.qos) do
       {:ok, channel}
+    end
+  end
+
+  @impl true
+  def setup_channel(%{exchange: exchange} = config) do
+    with {:ok, conn} <- Connection.open(config.connection),
+         {:ok, channel} <- Channel.open(conn),
+         {:ok, %{queue: qname}} = Queue.declare(channel, "", exclusive: true),
+         :ok <- Exchange.declare(channel, exchange[:name], exchange[:type], exchange[:options]),
+         :ok <- Queue.bind(channel, qname, exchange[:name], routing_key: "#"),
+         :ok <- Basic.qos(channel, config.qos) do
+      {:ok, channel, qname}
     end
   end
 
@@ -123,6 +140,33 @@ defmodule BroadwayRabbitMQ.AmqpClient do
     validate_supported_opts(conn_opts, group, supported)
   end
 
+  defp validate_exchange_opts([exchange: exchange_params]) do
+    group = :exchange
+
+    exchange_opts = exchange_params[:options] || []
+
+    supported = [
+      :passive,
+      :durable,
+      :auto_delete,
+      :internal
+    ]
+
+    required = [
+      :name,
+      :type
+    ]
+
+    with {:ok, params} <- validate_required_opts(exchange_params, group, required),
+         {:ok, options} <- validate_supported_opts(exchange_opts, group, supported) do
+      {:ok, Keyword.put(params, :options, options)}
+    end
+  end
+
+  defp validate_exchange_opts(_opts) do
+    {:ok, nil}
+  end
+
   defp validate_qos_opts(opts) do
     group = :qos
     qos_opts = opts[group] || []
@@ -141,5 +185,14 @@ defmodule BroadwayRabbitMQ.AmqpClient do
       [] -> {:ok, opts}
       keys -> {:error, "Unsupported options #{inspect(keys)} for #{inspect(group_name)}"}
     end
+  end
+
+  defp validate_required_opts(opts, group_name, required_opts) do
+    required_opts
+    |> Enum.reject(fn k -> k in Keyword.keys(opts) end)
+    |> case do
+         [] -> {:ok, opts}
+         keys -> {:error, "Missing required options #{inspect(keys)} for #{inspect(group_name)}"}
+       end
   end
 end

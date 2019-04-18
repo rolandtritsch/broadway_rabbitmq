@@ -5,7 +5,7 @@ defmodule BroadwayRabbitMQ.AmqpClientTest do
 
   test "default options" do
     assert AmqpClient.init(queue: "queue") ==
-             {:ok, "queue", %{connection: [], qos: [prefetch_count: 50], requeue: :always}}
+             {:ok, "queue", %{connection: [], qos: [prefetch_count: 50], requeue: :always, exchange: nil}}
   end
 
   describe "validate init options" do
@@ -38,7 +38,7 @@ defmodule BroadwayRabbitMQ.AmqpClientTest do
       ]
 
       assert AmqpClient.init(options) ==
-               {:ok, "queue", %{connection: connection, qos: qos, requeue: :once}}
+               {:ok, "queue", %{connection: connection, qos: qos, requeue: :once, exchange: nil}}
     end
 
     test "unsupported options for Broadway" do

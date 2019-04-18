@@ -10,6 +10,8 @@ defmodule BroadwayRabbitMQ.Producer do
   ## Options
 
     * `:queue` - Required. The name of the queue.
+    * `:exchange` - Optional. Defines a set of options used by the RabbitMQ client
+      to declare an Exchange. See `AMQP.Exchange.declare/4` for the full list of options.
     * `:connection` - Optional. Defines a set of options used by the RabbitMQ
       client to open the connection with the RabbitMQ broker. See
       `AMQP.Connection.open/1` for the full list of options.
@@ -44,6 +46,11 @@ defmodule BroadwayRabbitMQ.Producer do
             module:
               {BroadwayRabbitMQ.Producer,
               queue: "my_queue",
+              exchange: [
+                name: "my_exchange",
+                type: :topic,
+                options: []
+              ]
               requeue: :once,
               connection: [
                 username: "user",
@@ -247,6 +254,7 @@ defmodule BroadwayRabbitMQ.Producer do
 
   defp connect(state) do
     %{client: client, queue_name: queue_name, config: config, backoff: backoff} = state
+
     # TODO: Treat other setup errors properly
     case client.setup_channel(config) do
       {:ok, channel} ->
@@ -254,6 +262,12 @@ defmodule BroadwayRabbitMQ.Producer do
         backoff = backoff && Backoff.reset(backoff)
         consumer_tag = client.consume(channel, queue_name)
         %{state | channel: channel, consumer_tag: consumer_tag, backoff: backoff, conn_ref: ref}
+
+      {:ok, channel, qname} ->
+        ref = Process.monitor(channel.conn.pid)
+        backoff = backoff && Backoff.reset(backoff)
+        consumer_tag = client.consume(channel, qname)
+        %{state | channel: channel, consumer_tag: consumer_tag, backoff: backoff, conn_ref: ref, queue_name: qname}
 
       {:error, :econnrefused} ->
         handle_backoff(state)
