@@ -39,7 +39,7 @@ defmodule BroadwayRabbitMQ.AmqpClient do
          {:ok, queue} <- validate(opts, :queue),
          {:ok, requeue} <- validate(opts, :requeue, @requeue_default_option),
          {:ok, conn_opts} <- validate_conn_opts(opts),
-         {:ok, exchange_opts} <-  validate_exchange_opts(opts),
+         {:ok, exchange_opts} <-  validate_exchange_opts(opts[:exchange]),
          {:ok, qos_opts} <- validate_qos_opts(opts) do
       {:ok, queue,
        %{
@@ -140,7 +140,11 @@ defmodule BroadwayRabbitMQ.AmqpClient do
     validate_supported_opts(conn_opts, group, supported)
   end
 
-  defp validate_exchange_opts([exchange: exchange_params]) do
+  defp validate_exchange_opts(nil) do
+    {:ok, nil}
+  end
+
+  defp validate_exchange_opts(exchange_params) do
     group = :exchange
 
     exchange_opts = exchange_params[:options] || []
@@ -161,10 +165,6 @@ defmodule BroadwayRabbitMQ.AmqpClient do
          {:ok, options} <- validate_supported_opts(exchange_opts, group, supported) do
       {:ok, Keyword.put(params, :options, options)}
     end
-  end
-
-  defp validate_exchange_opts(_opts) do
-    {:ok, nil}
   end
 
   defp validate_qos_opts(opts) do
