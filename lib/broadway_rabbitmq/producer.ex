@@ -263,12 +263,6 @@ defmodule BroadwayRabbitMQ.Producer do
         consumer_tag = client.consume(channel, queue_name)
         %{state | channel: channel, consumer_tag: consumer_tag, backoff: backoff, conn_ref: ref}
 
-      {:ok, channel, qname} ->
-        ref = Process.monitor(channel.conn.pid)
-        backoff = backoff && Backoff.reset(backoff)
-        consumer_tag = client.consume(channel, qname)
-        %{state | channel: channel, consumer_tag: consumer_tag, backoff: backoff, conn_ref: ref, queue_name: qname}
-
       {:error, :econnrefused} ->
         handle_backoff(state)
     end
