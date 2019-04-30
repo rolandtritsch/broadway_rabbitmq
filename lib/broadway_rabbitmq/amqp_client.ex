@@ -38,7 +38,7 @@ defmodule BroadwayRabbitMQ.AmqpClient do
     with {:ok, opts} <- validate_supported_opts(opts, "Broadway", @supported_options),
          {:ok, queue} <- validate(opts, :queue),
          {:ok, requeue} <- validate(opts, :requeue, @requeue_default_option),
-         {:ok, conn_opts} <- validate_conn_opts(opts),
+         {:ok, conn_opts} <- validate_conn_opts(opts[:connection]),
          {:ok, exchange_opts} <-  validate_exchange_opts(opts[:exchange]),
          {:ok, qos_opts} <- validate_qos_opts(opts) do
       {:ok, queue,
@@ -119,9 +119,16 @@ defmodule BroadwayRabbitMQ.AmqpClient do
     {:error, "expected #{inspect(option)} to be #{expected}, got: #{inspect(value)}"}
   end
 
-  defp validate_conn_opts(opts) do
+  defp validate_conn_opts(conn_opts) when is_nil(conn_opts) do
+    {:ok, []}
+  end
+
+  defp validate_conn_opts(conn_opts) when is_binary(conn_opts) do
+    {:ok, conn_opts}
+  end
+
+  defp validate_conn_opts(conn_opts) do
     group = :connection
-    conn_opts = opts[group] || []
 
     supported = [
       :username,
