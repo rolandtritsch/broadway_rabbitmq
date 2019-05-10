@@ -5,7 +5,6 @@ defmodule BroadwayRabbitMQ.AmqpClient do
     Connection,
     Channel,
     Basic,
-    Exchange,
     Queue
   }
 
@@ -65,8 +64,6 @@ defmodule BroadwayRabbitMQ.AmqpClient do
   def setup_channel(%{exchange: exchange, queue: queue} = config) do
     with {:ok, conn} <- Connection.open(config.connection),
          {:ok, channel} <- Channel.open(conn),
-         {:ok, _} = Queue.declare(channel, queue),
-         :ok <- Exchange.declare(channel, exchange[:name], exchange[:type], exchange[:options]),
          :ok <- Queue.bind(channel, queue, exchange[:name], routing_key: "#"),
          :ok <- Basic.qos(channel, config.qos) do
       {:ok, channel}
